@@ -40,6 +40,7 @@ export default function CheckIn() {
     // Clear previous client data when searching for a new client
     setClient(null)
     setIsLoading(true)
+    setIsCheckedIn(false)
     try {
       const API_URL = import.meta.env.VITE_API_URL
 
