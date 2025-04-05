@@ -8,28 +8,15 @@
         "framework": "vite"
       }
     }],
-"routes": [
-    {
-      "src": "/api/.*",
-      "dest": "https://client-checkin-app-service.vercel.app/api/$1",
-      "methods": ["GET", "POST", "PUT", "DELETE"]
-    },
-    {
-      "src": "/_next/static/.*",
-      "headers": {
-        "Cache-Control": "public, max-age=31536000, immutable"
-      },
-      "continue": true
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/",
-      "headers": {
-        "Cache-Control": "public, max-age=0, must-revalidate"
-      }
-    }
-  ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
+    "routes": [
+        {
+          "src": "/api/.*",
+          "dest": "https://client-checkin-app-service.vercel.app/api/$1"
+        },
+        {
+          "src": "/(.*)",
+          "dest": "/index.html",
+          "status": 200
+        }
+      ]
+  }
