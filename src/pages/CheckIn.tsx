@@ -22,6 +22,8 @@ export default function CheckIn() {
   const [client, setClient] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const toast = useToast()
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+
 
   const handleFindClient = async () => {
     if (!barcode) {
@@ -79,7 +81,7 @@ export default function CheckIn() {
       })
       return
     }
-
+    setClient(null)
     setIsLoading(true)
     try {
       const API_URL = import.meta.env.VITE_API_URL
@@ -104,6 +106,7 @@ export default function CheckIn() {
         duration: 3000,
         isClosable: true,
       })
+      setIsCheckedIn(true)      
     } catch (error) {
       toast({
         title: 'Error',
@@ -215,6 +218,7 @@ export default function CheckIn() {
                   <Button
                     colorScheme="green"
                     onClick={handleCheckIn}
+                    disabled={isCheckedIn}
                     isLoading={isLoading}
                     loadingText="Checking in..."
                     width="full"
