@@ -83,7 +83,7 @@ export default function CheckIn() {
     setIsLoading(true)
     try {
       const API_URL = import.meta.env.VITE_API_URL
-      const response = await fetch(`${API_URL}/api/check-ins`, {
+      const response = await fetch(`${API_URL}/api/check-in`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
