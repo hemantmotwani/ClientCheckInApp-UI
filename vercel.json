@@ -7,5 +7,16 @@
         "distDir": "dist",
         "framework": "vite"
       }
-    }]
+    }],
+    "routes": [
+        {
+          "src": "/api/.*",
+          "dest": "https://client-checkin-app-service.vercel.app/api/$1"
+        },
+        {
+          "src": "/(.*)",
+          "dest": "/index.html",
+          "status": 200
+        }
+      ]
   }
