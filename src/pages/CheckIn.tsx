@@ -82,8 +82,8 @@ export default function CheckIn() {
       })
       return
     }
-    setClient(null)
-    setIsLoading(true)
+    // setClient(null)
+    setIsLoading(false)
     try {
       const API_URL = import.meta.env.VITE_API_URL
       const response = await fetch(`${API_URL}/api/check-in`, {
@@ -99,7 +99,7 @@ export default function CheckIn() {
       }
 
       const data = await response.json()
-      setClient(data)
+      // setClient(data)
       toast({
         title: 'Success',
         description: 'Check-in successful',
