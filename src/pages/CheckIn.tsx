@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   VStack,
   Heading,
@@ -14,17 +14,42 @@ import {
   Divider,
   HStack,
   Container,
+  Avatar,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Box,
+  Flex,  
 } from '@chakra-ui/react'
 import { Client } from '../types/client'
+import { useNavigate } from 'react-router-dom'
+import { ChevronDownIcon } from '@chakra-ui/icons';
+import { FiLogOut } from 'react-icons/fi';
 
 export default function CheckIn() {
+  const [user, setUser] = useState<{ email: string; name: string } | null>(null)
+  const [authLoading, setAuthLoading] = useState(true); // Add auth loading state
   const [barcode, setBarcode] = useState('')
   const [client, setClient] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const toast = useToast()
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const navigate = useNavigate();
 
-
+  useEffect(() => {
+    fetch('http://localhost:3001/auth/status', { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isAuthenticated) {
+          setUser(data.user);
+        } else {
+          navigate ( '/login');
+        }
+        setAuthLoading(false);
+      });
+  }, [navigate]);
+  
   const handleFindClient = async () => {
     if (!barcode) {
       toast({
@@ -120,9 +145,52 @@ export default function CheckIn() {
       setIsLoading(false)
     }
   }
-
+  if (authLoading) {
+    return (
+      <Container maxW="container.md" py={8} centerContent>
+        <Spinner size="xl" thickness="4px" speed="0.65s" color="blue.500"/>
+      </Container>
+    )
+  }
+  const handleLogout = () => {
+    fetch('http://localhost:3001/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    }).then(() => navigate('/login'));
+  };
+  // user ? <div>Welcome, {user.email}</div> : <div>Loading...</div>;
   return (
     <Container maxW="container.md" py={8}>
+<Flex
+      as="header"
+      position="absolute" // or "fixed" if you want it to stay on scroll
+      top="0"
+      right="0"
+      p={4}
+      zIndex="10"
+    >
+      <Menu>
+        <MenuButton as={Button} variant="ghost" px={3} py={2}>
+          <HStack spacing={3}>
+            <Avatar name={user?.name} size="sm" />
+            <Text fontWeight="medium">{user?.name}</Text>
+          </HStack>
+        </MenuButton>
+        <MenuList>
+          <MenuItem
+            icon={<FiLogOut />}
+            bg="red.500"
+            color="white"
+            _hover={{ bg: 'red.600' }}
+            _focus={{ bg: 'red.600' }}
+            onClick={handleLogout}
+          >
+            Log Out
+          </MenuItem>
+        </MenuList>
+      </Menu>
+    </Flex>
+
       <VStack spacing={8} align="stretch">
         <Heading textAlign="center">Client Check-In</Heading>
         
