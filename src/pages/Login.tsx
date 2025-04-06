@@ -7,7 +7,7 @@ import {
     CardBody, 
     Box 
   } from '@chakra-ui/react';
-  
+  const API_URL = import.meta.env.VITE_API_URL
   export default function Login() {
     return (
       <Container maxW="container.md" py={8} centerContent>
@@ -23,15 +23,12 @@ import {
                   colorScheme="blue"
                   size="lg"
                   w="full"
-                  onClick={() => window.location.href = "http://localhost:3001/auth/google"}
+                  onClick={() => window.location.href = `${API_URL}/auth/google`}
                   _hover={{ transform: 'scale(1.02)' }}
                   transition="all 0.2s"
                 >
                   Continue with Google
-                </Button>
-                <Box typography="md">
-                Secure login using your organization account
-</Box>  
+                </Button> 
 
               </VStack>
             </CardBody>

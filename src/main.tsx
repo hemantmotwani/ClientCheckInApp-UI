@@ -1,8 +1,5 @@
-import React from 'react';
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.tsx'
 import CheckIn from './pages/CheckIn';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
@@ -33,6 +30,8 @@ const router = createBrowserRouter([
     path: "/admin",
     element: <AdminDashboard />, // Create this component
   },
+
+  
 ]);
 createRoot(document.getElementById('root')!).render(
 <ChakraProvider theme={theme}>

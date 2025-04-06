@@ -16,7 +16,10 @@ import {
   Input,
   Card,
   CardBody,
+  Flex,
 } from '@chakra-ui/react'
+import UserProfile from './UserProfile';
+import { useNavigate } from 'react-router-dom'
 
 interface CheckIn {
   id: string;
@@ -46,6 +49,9 @@ interface Filters {
 }
 
 export default function AdminDashboard() {
+  const [user, setUser] = useState<{ email: string; name: string } | null >()
+  const [authLoading, setAuthLoading] = useState(true); // Add auth loading state
+  const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([])
   const [filteredCheckIns, setFilteredCheckIns] = useState<CheckIn[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -61,11 +67,11 @@ export default function AdminDashboard() {
     postal: [],
   })
   const toast = useToast()
-
+  const API_URL = import.meta.env.VITE_API_URL
   useEffect(() => {
     const fetchCheckIns = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL
+        // const API_URL = import.meta.env.VITE_API_URL
         const response = await fetch(`${API_URL}/api/check-ins`)
         if (!response.ok) {
           throw new Error('Failed to fetch check-ins')
@@ -107,6 +113,21 @@ export default function AdminDashboard() {
     setFilteredCheckIns(filtered)
   }, [filters, checkIns])
 
+
+  useEffect(() => {
+    fetch(`${API_URL}/auth/status`, { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isAuthenticated) {
+          setUser(data.user);
+        } else {
+          navigate ( '/login');
+        }
+        setAuthLoading(false);
+      });
+  }, [navigate]);
+
+
   const handleFilterChange = (field: keyof Filters, value: string) => {
     setFilters(prev => ({
       ...prev,
@@ -126,6 +147,9 @@ export default function AdminDashboard() {
 
   return (
     <Container maxW="container.xl" py={8}>
+      <Flex justify="flex-end" mb={8}>
+        <UserProfile user={user} />
+      </Flex>      
       <VStack spacing={8} align="stretch">
         <Card>
           <CardBody>
