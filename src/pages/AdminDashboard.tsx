@@ -115,7 +115,12 @@ export default function AdminDashboard() {
 
 
   useEffect(() => {
-    fetch(`${API_URL}/auth/status`, { credentials: 'include' })
+    fetch(`${API_URL}/auth/status`, { credentials: 'include' ,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.isAuthenticated) {
