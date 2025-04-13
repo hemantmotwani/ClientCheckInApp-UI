@@ -17,9 +17,11 @@ import {
   Card,
   CardBody,
   Flex,
+  Text,
 } from '@chakra-ui/react'
-import UserProfile from './UserProfile';
 import { useNavigate } from 'react-router-dom'
+import UserProfile, { User, Role, ROLES } from './UserProfile';
+
 
 interface CheckIn {
   id: string;
@@ -49,12 +51,13 @@ interface Filters {
 }
 
 export default function AdminDashboard() {
-  const [user, setUser] = useState<{ email: string; name: string } | null >()
+  const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true); // Add auth loading state
+  const [isAuthorized, setIsAuthorized] = useState(false); // Add state for authorization status
   const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([])
   const [filteredCheckIns, setFilteredCheckIns] = useState<CheckIn[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isDataLoading, setIsDataLoading] = useState(false); // Changed name
   const [filters, setFilters] = useState<Filters>({
     name: [],
     clientId: [],
@@ -68,11 +71,91 @@ export default function AdminDashboard() {
   })
   const toast = useToast()
   const API_URL = import.meta.env.VITE_API_URL
+
+  // --- Authentication & Authorization useEffect ---
   useEffect(() => {
+    // Set initial data loading state (optional, depends on UX)
+    // setIsDataLoading(true); // You might want data loading to start only AFTER auth
+
+    fetch(`${API_URL}/auth/status`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Auth status failed: ${res.statusText}`);
+        return res.json();
+      })
+      .then((data) => {
+        console.log("AdminDashboard: Received auth data:", data); // Log raw data
+
+        if (data.isAuthenticated && data.user) {
+          setUser(data.user);
+
+          // Ensure the user object has the expected structure
+          if (data.user.email && data.user.name && data.user.roles && data.user.activeRole) {
+            const fetchedUser = data.user as User;
+            setUser(fetchedUser);
+            console.log(`AdminDashboard: Checking authorization. Comparing fetchedUser.activeRole ('${fetchedUser.activeRole}', type: ${typeof fetchedUser.activeRole}) with ROLES.ADMIN ('${ROLES.ADMIN}', type: ${typeof ROLES.ADMIN})`);
+
+            // **** AUTHORIZATION CHECK: Based on ACTIVE ROLE ****
+            if (fetchedUser.activeRole === ROLES.ADMIN) {
+              console.log("AdminDashboard: Authorization check PASSED. Setting isAuthorized to true.");
+              
+              setIsAuthorized(true);
+              // Fetch data only if authorized (moved fetch logic)
+              // fetchCheckIns(); // Call fetch function here or trigger via another useEffect
+            } else {
+              console.log("AdminDashboard: Authorization check FAILED. Setting isAuthorized to false.");
+
+              setIsAuthorized(false);
+              // Optional: Show toast immediately, but the main feedback will be the page content
+              // toast({ /* ... Unauthorized toast ... */ });
+            }
+          } else {
+            // Handle incomplete user data from backend
+            console.error("AdminDashboard Auth Error: User data incomplete.");
+            toast({ title: 'Login Error', description: 'User data incomplete. Please log in again.', status: 'error', /*...*/ });
+            navigate('/login');
+          }
+        } else {
+          console.log("AdminDashboard: Not authenticated or user data missing in response. Navigating to login.");
+          navigate('/login');
+        }
+      })
+      .catch(error => {
+        console.error("AdminDashboard: Authentication check fetch failed:", error);
+        toast({ title: 'Authentication Error', description: 'Could not verify login status.', status: 'error', duration: 5000, isClosable: true });
+        navigate('/login');
+      })
+      .finally(() => {
+        console.log("AdminDashboard: Auth check finished. Setting authLoading to false.");
+        setAuthLoading(false);
+      });
+  // Removed fetchCheckIns call from here, handle it separately
+  }, [navigate, toast, API_URL]); // Dependencies for auth check
+
+
+
+  useEffect(() => {
+    // Only fetch if authorized and not already loading/fetched
+    if (!isAuthorized || authLoading) {
+      return; // Don't fetch if not authorized or auth is still loading
+    }
+
     const fetchCheckIns = async () => {
+      setIsDataLoading(true); // Start data loading indicator
+
       try {
-        // const API_URL = import.meta.env.VITE_API_URL
-        const response = await fetch(`${API_URL}/api/check-ins`)
+          const response = await fetch(`${API_URL}/api/dashboard/check-ins`, {
+          credentials: 'include',
+        });
+        // Specific check for 403 from backend (belt-and-suspenders)
+        if (response.status === 403) {
+          throw new Error('Forbidden: You do not have permission to view this data.');
+       }
         if (!response.ok) {
           throw new Error('Failed to fetch check-ins')
         }
@@ -81,19 +164,21 @@ export default function AdminDashboard() {
         setFilteredCheckIns(data)
       } catch (error) {
         toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to fetch check-ins',
+          title: 'Error Fetching Data',
+          description: error instanceof Error ? error.message : 'An unknown error occurred',
           status: 'error',
           duration: 3000,
           isClosable: true,
-        })
-      } finally {
-        setIsLoading(false)
-      }
+        });
+        setCheckIns([]); // Clear data on error
+        setFilteredCheckIns([]);
+     } finally {
+       setIsDataLoading(false); // Stop data loading indicator
+     }
     }
 
     fetchCheckIns()
-  }, [toast])
+  },[isAuthorized, authLoading, toast, API_URL]);
 
   useEffect(() => {
     const filtered = checkIns.filter(checkIn => {
@@ -114,25 +199,6 @@ export default function AdminDashboard() {
   }, [filters, checkIns])
 
 
-  useEffect(() => {
-    fetch(`${API_URL}/auth/status`, { credentials: 'include' ,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.isAuthenticated) {
-          setUser(data.user);
-        } else {
-          navigate ( '/login');
-        }
-        setAuthLoading(false);
-      });
-  }, [navigate]);
-
-
   const handleFilterChange = (field: keyof Filters, value: string) => {
     setFilters(prev => ({
       ...prev,
@@ -140,7 +206,7 @@ export default function AdminDashboard() {
     }))
   }
 
-  if (isLoading) {
+  if (authLoading) {
     return (
       <Container maxW="container.xl" py={8}>
         <HStack justify="center">
@@ -149,7 +215,23 @@ export default function AdminDashboard() {
       </Container>
     )
   }
-
+  if (!isAuthorized) {
+    return (
+      <Container maxW="container.xl" py={8}>
+         {/* Still show UserProfile so they can switch roles or log out */}
+         <Flex justify="flex-end" mb={8}>
+           <UserProfile user={user} />
+         </Flex>
+         <VStack spacing={4} textAlign="center" mt={20}>
+            <Heading size="lg" color="orange.500">Access Denied</Heading>
+            <Text>Your current active role does not have permission to view this page.</Text>
+            <Text fontSize="sm">Try switching roles via your profile menu if you have access.</Text>
+            {/* Optional: Button to navigate home */}
+            {/* <Button onClick={() => navigate('/')}>Go Home</Button> */}
+         </VStack>
+      </Container>
+    );
+  }
   return (
     <Container maxW="container.xl" py={8}>
       <Flex justify="flex-end" mb={8}>
@@ -166,6 +248,12 @@ export default function AdminDashboard() {
 
         <Card>
           <CardBody>
+          {isDataLoading ? (
+              <HStack justify="center" py={10}>
+                <Spinner size="lg" />
+                <Text ml={3}>Loading dashboard data...</Text>
+              </HStack>
+            ) : (
             <Box overflowX="auto">
               <Table variant="simple" size="sm">
                 <Thead>
@@ -258,7 +346,12 @@ export default function AdminDashboard() {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {filteredCheckIns.map((checkIn, index) => (
+                  
+                  {
+                  filteredCheckIns.length === 0 && !isDataLoading ? (
+                       <Tr><Td colSpan={10} textAlign="center" py={10}>No check-in records found.</Td></Tr>
+                    ) : (
+                  filteredCheckIns.map((checkIn, index) => (
                     <Tr 
                       key={checkIn.id}
                       bg={index % 2 === 0 ? 'white' : 'blue.50'}
@@ -275,13 +368,15 @@ export default function AdminDashboard() {
                       <Td>{checkIn.postal}</Td>
                       <Td>{new Date(checkIn.checkInTime).toLocaleString()}</Td>
                     </Tr>
-                  ))}
+                  ))
+                  )}
                 </Tbody>
               </Table>
             </Box>
+            )}
           </CardBody>
         </Card>
       </VStack>
     </Container>
-  )
+  );
 } 

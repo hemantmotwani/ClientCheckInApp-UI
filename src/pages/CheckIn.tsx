@@ -19,10 +19,10 @@ import {
 import { Client } from '../types/client'
 import { useNavigate } from 'react-router-dom'
 
-import UserProfile from './UserProfile';
+import UserProfile, { User, Role, ROLES } from './UserProfile';
 
 export default function CheckIn() {
-  const [user, setUser] = useState<{ email: string; name: string } | null >()
+  const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true); // Add auth loading state
   const [barcode, setBarcode] = useState('')
   const [client, setClient] = useState<Client | null>(null)
@@ -36,14 +36,31 @@ export default function CheckIn() {
     fetch(`${API_URL}/auth/status`, { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
-        if (data.isAuthenticated) {
-          setUser(data.user);
+        if (data.isAuthenticated && data.user) { // Check data.user exists
+          // Add console log to verify data structure
+          console.log('CheckIn - Auth Status User Data:', data.user);
+          // Ensure the received data matches the User interface
+          if (data.user.email && data.user.name && data.user.roles && data.user.activeRole) {
+             setUser(data.user as User); // Cast to User type after checks
+          } else {
+             console.error("CheckIn Auth Error: Received user data is incomplete or doesn't match expected structure.");
+             // Handle incomplete data - maybe navigate to login or show error
+             toast({ title: 'Login Error', description: 'User data is incomplete. Please log out and log in again.', status: 'error', duration: 5000, isClosable: true });
+             // Optionally navigate away: navigate('/login');
+          }
         } else {
-          navigate ( '/login');
+          navigate('/login');
         }
+      })
+      .catch(error => {
+         console.error("CheckIn Authentication check failed:", error);
+         toast({ title: 'Authentication Error', description: 'Could not verify login status.', status: 'error', duration: 5000, isClosable: true });
+         navigate('/login');
+      })
+      .finally(() => {
         setAuthLoading(false);
       });
-  }, [navigate]);
+  }, [navigate, toast, API_URL]); // Added API_URL and toast dependencies
   
   const handleFindClient = async () => {
     if (!barcode) {
@@ -63,7 +80,15 @@ export default function CheckIn() {
     setIsCheckedIn(false)
     try {
 
-      const response =await fetch(`${API_URL}/api/clients/${barcode}`)
+      const response =await fetch(`${API_URL}/api/clients/${barcode}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      )
       if (!response.ok) {
         throw new Error('Client not found')
       }
@@ -106,6 +131,7 @@ export default function CheckIn() {
       const API_URL = import.meta.env.VITE_API_URL
       const response = await fetch(`${API_URL}/api/check-in`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
