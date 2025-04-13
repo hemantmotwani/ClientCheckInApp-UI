@@ -1,4 +1,4 @@
-import { Avatar, Text, Flex, Menu, MenuButton, HStack, Button, MenuList, MenuItem, Divider, VStack } from '@chakra-ui/react';
+import { Avatar, Text, Flex, Menu, MenuButton, HStack, Button, MenuList, MenuItem, Divider, VStack,useColorModeValue  } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { FiLogOut, FiRepeat } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
@@ -24,10 +24,19 @@ interface UserProfileProps {
     user: User | null;
 }
 const API_URL = import.meta.env.VITE_API_URL
+
 const UserProfile = ({ user }: UserProfileProps) => {
+    // const headerHeight = "64px";
+
     const navigate = useNavigate();
     // State to manage the *currently selected* active role in the UI
     const [currentActiveRole, setCurrentActiveRole] = useState<Role | null>(null);    
+
+     // Hook to get appropriate colors for light/dark mode
+     const menuBg = useColorModeValue('white', 'gray.700'); // White in light mode, dark gray in dark mode
+     const menuTextColor = useColorModeValue('gray.800', 'white'); // Dark text in light mode, white text in dark mode
+     const menuHeaderColor = useColorModeValue('gray.500', 'gray.400'); // Slightly lighter header text
+ 
     // Initialize/update local active role state when the user prop changes
     useEffect(() => {
         if (user) {
@@ -57,8 +66,6 @@ const UserProfile = ({ user }: UserProfileProps) => {
         // No backend call or page refresh needed for now
         // The menu should close automatically on item click
     };
-    console.log('user', user);
-    console.log('currentActiveRole', currentActiveRole);
     
     // Render nothing if user data or the active role isn't available yet
     if (!user || !currentActiveRole) {
@@ -88,71 +95,73 @@ const UserProfile = ({ user }: UserProfileProps) => {
     });
 
     return (
+        // Remove positioning styles from Flex
+        // Adjust padding if needed (p={4} might be too much inside the header)
         <Flex
-            as="header"
-            position="absolute"
-            top="0"
-            right="0"
-            p={4}
-            zIndex="10"
+            alignItems="center" // Align items vertically if needed
+            // p={1} // Example: reduce padding
         >
-            <Menu placement="bottom-end"> {/* Better placement */}
+            <Menu placement="bottom-end">
                 <MenuButton
                     as={Button}
-                    variant="ghost"
-                    px={3} py={2}
-                    _hover={{ bg: 'gray.100' }}
-                    _active={{ bg: 'gray.200' }}
-                    h="auto" // Adjust height automatically
+                    variant="ghost" // Keep ghost variant for header integration
+                    color="white" // Ensure text/icon color contrasts with header bg
+                    _hover={{ bg: 'blue.600' }} // Adjust hover bg for header
+                    _active={{ bg: 'blue.700' }} // Adjust active bg for header
+                    px={2} // Adjust padding
+                    py={1} // Adjust padding
+                    h="auto"
                 >
-                    <HStack spacing={3}>
-                        <Avatar name={user.name} size="sm" bg="blue.500" color="white" />
-                        {/* Use VStack to stack name and active role */}
-                        <VStack align="start" spacing={0}>
-                            <Text fontWeight="medium" fontSize="md" lineHeight="tight">{user.name}</Text>
-                            {/* Display the current active role */}
-                            <Text fontSize="xs" color="gray.600" lineHeight="tight">
-                                Role: {currentActiveRole}
+                    <HStack spacing={2}> {/* Reduce spacing */}
+                        <Avatar name={user.name} size="sm" /* Optional: Adjust size */ />
+                        {/* Optionally hide name on smaller screens if needed */}
+                        <VStack align="start" spacing={0} display={{ base: 'none', md: 'flex' }}> {/* Hide text on small screens */}
+                            <Text fontWeight="medium" fontSize="sm" lineHeight="tight">{user.name}</Text>
+                            <Text fontSize="xs" color="blue.100" lineHeight="tight"> {/* Lighter color for role */}
+                                Role: {currentActiveRole.charAt(0).toUpperCase() + currentActiveRole.slice(1)}
                             </Text>
                         </VStack>
                     </HStack>
                 </MenuButton>
-                <MenuList>
-                    {/* --- Role Switching Section --- */}
-                    {/* Only show this section if there are roles to switch to */}
+                {/* MenuList will still appear below the button */}
+                <MenuList zIndex="popover"
+                    bg={menuBg} // Set background color based on color mode
+                    color={menuTextColor} // Set default text color for items
+                    boxShadow="md" // Add a subtle shadow
+                > {/* Ensure menu appears above content */}
+                    {/* Role Switching Section */}
                     {switchableRoles.length > 0 && (
                         <>
-                            <MenuItem isFocusable={false} fontWeight="bold" fontSize="sm" color="gray.500">
+                            <MenuItem isFocusable={false} fontWeight="bold" fontSize="sm" color={menuHeaderColor}>
                                 Switch Role To:
                             </MenuItem>
                             {switchableRoles.map((role) => (
                                 <MenuItem
                                     key={role}
-                                    icon={<FiRepeat size="14px" />} // Add an icon
+                                    icon={<FiRepeat size="14px" />}
                                     onClick={() => handleSwitchRole(role)}
+                                    _hover={{ bg: useColorModeValue('gray.100', 'gray.600') }}
+                                    _focus={{ bg: useColorModeValue('gray.100', 'gray.600') }}                                    
                                 >
-                                    {role}
+                                    {role.charAt(0).toUpperCase() + role.slice(1)}
                                 </MenuItem>
                             ))}
                             <Divider />
                         </>
                     )}
-                    {/* --- End Role Switching Section --- */}
-
-                    {/* --- Logout Section --- */}
+                    {/* Logout Section */}
                     <MenuItem
                         icon={<FiLogOut />}
-                        color="red.500" // Make text red for emphasis
-                        _hover={{ bg: 'red.50', color: 'red.600' }} // Subtle hover
+                        color="red.500"
+                        _hover={{ bg: 'red.50', color: 'red.600' }}
                         _focus={{ bg: 'red.50', color: 'red.600' }}
                         onClick={handleLogout}
                     >
                         Log Out
                     </MenuItem>
-                    {/* --- End Logout Section --- */}
                 </MenuList>
             </Menu>
         </Flex>
     );
 };
-export default UserProfile
+export default UserProfile;

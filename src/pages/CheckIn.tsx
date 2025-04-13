@@ -14,53 +14,55 @@ import {
   Divider,
   HStack,
   Container,
-  Flex,  
 } from '@chakra-ui/react'
 import { Client } from '../types/client'
-import { useNavigate } from 'react-router-dom'
+// import { useNavigate } from 'react-router-dom'
 
-import UserProfile, { User, Role, ROLES } from './UserProfile';
+// import UserProfile, { User, Role, ROLES } from './UserProfile';
+import { useUserContext } from '../components/Layout';
 
 export default function CheckIn() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true); // Add auth loading state
+    const { user } = useUserContext();
+
+  // const [user, setUser] = useState<User | null>(null);
+  // const [authLoading, setAuthLoading] = useState(true); // Add auth loading state
   const [barcode, setBarcode] = useState('')
   const [client, setClient] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const toast = useToast()
   const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL
 
-  useEffect(() => {
-    fetch(`${API_URL}/auth/status`, { credentials: 'include' })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.isAuthenticated && data.user) { // Check data.user exists
-          // Add console log to verify data structure
-          console.log('CheckIn - Auth Status User Data:', data.user);
-          // Ensure the received data matches the User interface
-          if (data.user.email && data.user.name && data.user.roles && data.user.activeRole) {
-             setUser(data.user as User); // Cast to User type after checks
-          } else {
-             console.error("CheckIn Auth Error: Received user data is incomplete or doesn't match expected structure.");
-             // Handle incomplete data - maybe navigate to login or show error
-             toast({ title: 'Login Error', description: 'User data is incomplete. Please log out and log in again.', status: 'error', duration: 5000, isClosable: true });
-             // Optionally navigate away: navigate('/login');
-          }
-        } else {
-          navigate('/login');
-        }
-      })
-      .catch(error => {
-         console.error("CheckIn Authentication check failed:", error);
-         toast({ title: 'Authentication Error', description: 'Could not verify login status.', status: 'error', duration: 5000, isClosable: true });
-         navigate('/login');
-      })
-      .finally(() => {
-        setAuthLoading(false);
-      });
-  }, [navigate, toast, API_URL]); // Added API_URL and toast dependencies
+  // useEffect(() => {
+  //   fetch(`${API_URL}/auth/status`, { credentials: 'include' })
+  //     .then((res) => res.json())
+  //     .then((data) => {
+  //       if (data.isAuthenticated && data.user) { // Check data.user exists
+  //         // Add console log to verify data structure
+  //         console.log('CheckIn - Auth Status User Data:', data.user);
+  //         // Ensure the received data matches the User interface
+  //         if (data.user.email && data.user.name && data.user.roles && data.user.activeRole) {
+  //            setUser(data.user as User); // Cast to User type after checks
+  //         } else {
+  //            console.error("CheckIn Auth Error: Received user data is incomplete or doesn't match expected structure.");
+  //            // Handle incomplete data - maybe navigate to login or show error
+  //            toast({ title: 'Login Error', description: 'User data is incomplete. Please log out and log in again.', status: 'error', duration: 5000, isClosable: true });
+  //            // Optionally navigate away: navigate('/login');
+  //         }
+  //       } else {
+  //         navigate('/login');
+  //       }
+  //     })
+  //     .catch(error => {
+  //        console.error("CheckIn Authentication check failed:", error);
+  //        toast({ title: 'Authentication Error', description: 'Could not verify login status.', status: 'error', duration: 5000, isClosable: true });
+  //        navigate('/login');
+  //     })
+  //     .finally(() => {
+  //       setAuthLoading(false);
+  //     });
+  // }, [navigate, toast, API_URL]); // Added API_URL and toast dependencies
   
   const handleFindClient = async () => {
     if (!barcode) {
@@ -164,18 +166,18 @@ export default function CheckIn() {
       setIsLoading(false)
     }
   }
-  if (authLoading) {
-    return (
-      <Container maxW="container.md" py={8} centerContent>
-        <Spinner size="xl" thickness="4px" speed="0.65s" color="blue.500"/>
-      </Container>
-    )
-  }
+  // if (authLoading) {
+  //   return (
+  //     <Container maxW="container.md" py={8} centerContent>
+  //       <Spinner size="xl" thickness="4px" speed="0.65s" color="blue.500"/>
+  //     </Container>
+  //   )
+  // }
   return (
     <Container maxW="container.md" py={8}>
-      <Flex justify="flex-end" mb={8}>
+      {/* <Flex justify="flex-end" mb={8}>
         <UserProfile user={user} />
-      </Flex>
+      </Flex> */}
 
       <VStack spacing={8} align="stretch">
         <Heading textAlign="center">Client Check-In</Heading>

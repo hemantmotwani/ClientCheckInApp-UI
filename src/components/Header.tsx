@@ -1,51 +1,70 @@
 // src/components/Header.tsx
 import { Box, Flex, Heading, HStack, Link as ChakraLink, Spacer } from '@chakra-ui/react';
-import { Link as RouterLink } from 'react-router-dom'; // Use alias to avoid name clash
+import { NavLink as RouterNavLink, useLocation } from 'react-router-dom';
+// Import UserProfile and User type
+import UserProfile, { User } from '../pages/UserProfile';
 
 // Define the navigation links
 const navItems = [
   { label: 'Home', path: '/' },
-  { label: 'Check In', path: '/check-in' }, // Assuming '/check-in' is the route for CheckIn page
+  { label: 'Check In', path: '/check-in' },
   { label: 'Admin', path: '/admin' },
-  // Add other links as needed, e.g., Client Details if you have that page
-  // { label: 'Client Details', path: '/clients' },
 ];
 
-export const Header = () => {
+// Define props for the Header, including the user
+interface HeaderProps {
+  user: User | null;
+}
+
+export const Header = ({ user }: HeaderProps) => {
+  const location = useLocation();
+
   return (
-    <Box bg="blue.500" px={6} py={3} color="white" boxShadow="sm">
-      <Flex alignItems="center">
+    <Box
+      as="header"
+      position="fixed"
+      top="0"
+      left="0"
+      right="0"
+      zIndex="banner"
+      bg="blue.500"
+      px={6} // Main horizontal padding for the header bar
+      py={2} // Adjust vertical padding if needed
+      color="white"
+      boxShadow="sm"
+    >
+      <Flex alignItems="center" maxW="container.xl" mx="auto">
         {/* Logo/Brand */}
         <Heading as="h1" size="md" mr={8}>
-          <ChakraLink as={RouterLink} to="/" _hover={{ textDecoration: 'none' }}>
+          <ChakraLink as={RouterNavLink} to="/" _hover={{ textDecoration: 'none' }}>
             ClientCheckInApp
           </ChakraLink>
         </Heading>
 
         {/* Navigation Links */}
         <HStack spacing={6}>
-          {navItems.map((item) => (
-            <ChakraLink
-              key={item.label}
-              as={RouterLink}
-              to={item.path}
-              fontWeight="medium"
-              _hover={{ textDecoration: 'underline' }}
-              // Optional: Add active styling based on current route if needed
-              // isActive={location.pathname === item.path} // Requires useLocation hook
-            >
-              {item.label}
-            </ChakraLink>
-          ))}
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '/check-in');
+            return (
+              <ChakraLink
+                key={item.label}
+                as={RouterNavLink}
+                to={item.path}
+                fontWeight="medium"
+                textDecoration={isActive ? 'underline' : 'none'}
+                opacity={isActive ? 1 : 0.8}
+                _hover={{ textDecoration: 'underline', opacity: 1 }}
+              >
+                {item.label}
+              </ChakraLink>
+            );
+          })}
         </HStack>
 
-        {/* Spacer pushes UserProfile to the right, but UserProfile is positioned absolutely */}
         <Spacer />
 
-        {/* UserProfile will be positioned absolutely relative to its nearest positioned ancestor,
-            so it doesn't need to be directly inside the Header's Flex layout here.
-            It will overlay on top. Ensure the parent container where Header is used
-            allows for this absolute positioning. */}
+        {/* Render UserProfile directly within the header if user exists */}
+        {user && <UserProfile user={user} />}
       </Flex>
     </Box>
   );
