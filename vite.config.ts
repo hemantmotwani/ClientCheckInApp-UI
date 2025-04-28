@@ -8,19 +8,32 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     headers: {
-      // Required for Google OAuth popups to work:
-      "Cross-Origin-Opener-Policy": "same-origin-allow-popups", // Allows postMessage
-      "Cross-Origin-Embedder-Policy": "unsafe-none", // Disables strict isolation (for OAuth)
+      // Critical for Google OAuth popups to work:
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+      "Cross-Origin-Embedder-Policy": "unsafe-none", // Disable COEP for OAuth compatibility
+      "Access-Control-Allow-Origin": "http://localhost:5173" // Explicit CORS for dev
     },
+    proxy: {
+      // Proxy API requests to avoid CORS during development
+      '/api': {
+        target: 'https://client-checkin-app-service.vercel.app',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
-  base: '', // No trailing slash
+  base: '',
   build: {
     rollupOptions: {
       output: {
         entryFileNames: `[name].js`,
         chunkFileNames: `[name].js`,
-        assetFileNames: `[name].[ext]`,
-      },
-    },
+        assetFileNames: `[name].[ext]`
+      }
+    }
   },
+  define: {
+    // Ensure consistent base URL in the app
+    'import.meta.env.BASE_URL': JSON.stringify('/')
+  }
 });

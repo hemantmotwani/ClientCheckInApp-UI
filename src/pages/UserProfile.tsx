@@ -1,167 +1,189 @@
-import { Avatar, Text, Flex, Menu, MenuButton, HStack, Button, MenuList, MenuItem, Divider, VStack,useColorModeValue  } from '@chakra-ui/react';
-import { useNavigate } from 'react-router-dom';
-import { FiLogOut, FiRepeat } from 'react-icons/fi';
-import { useState, useEffect } from 'react';
+import { 
+    Avatar, 
+    Text, 
+    Flex, 
+    Menu, 
+    MenuButton, 
+    HStack, 
+    Button, 
+    MenuList, 
+    MenuItem, 
+    Divider, 
+    VStack, 
+    useColorModeValue,
+    useToast
+  } from '@chakra-ui/react';
+  import { useNavigate } from 'react-router-dom';
+  import { FiLogOut, FiRepeat } from 'react-icons/fi';
+  import { useState, useMemo } from 'react';
+  import { getAuth, signOut } from 'firebase/auth'; // Import Firebase signOut
 
-
-export const ROLES = {
+  // Constants
+  export const ROLES = {
     ADMIN: 'admin',
     VOLUNTEER: 'volunteer',
     STAFF: 'staff',
-  } as const; 
-  export type Role = typeof ROLES[keyof typeof ROLES]; 
-
+  } as const;
+  
+  export type Role = typeof ROLES[keyof typeof ROLES];
+  
   export interface User {
     email: string;
     name: string;
-    roles: Role[]; 
-    activeRole: Role; 
-}
-// ---
-
-interface UserProfileProps {
-    // Allow user to be null initially while auth is loading in parent
+    roles: Role[];
+    activeRole: Role;
+  }
+  
+  interface UserProfileProps {
     user: User | null;
-}
-const API_URL = import.meta.env.VITE_API_URL
-
-const UserProfile = ({ user }: UserProfileProps) => {
-    // const headerHeight = "64px";
-
+  }
+  
+//   const API_URL = import.meta.env.VITE_API_URL;
+  
+  const UserProfile = ({ user }: UserProfileProps) => {
     const navigate = useNavigate();
-    // State to manage the *currently selected* active role in the UI
-    const [currentActiveRole, setCurrentActiveRole] = useState<Role | null>(null);    
-
-     // Hook to get appropriate colors for light/dark mode
-     const menuBg = useColorModeValue('white', 'gray.700'); // White in light mode, dark gray in dark mode
-     const menuTextColor = useColorModeValue('gray.800', 'white'); // Dark text in light mode, white text in dark mode
-     const menuHeaderColor = useColorModeValue('gray.500', 'gray.400'); // Slightly lighter header text
- 
-    // Initialize/update local active role state when the user prop changes
-    useEffect(() => {
-        if (user) {
-            setCurrentActiveRole(user.activeRole);
-        } else {
-            setCurrentActiveRole(null); // Reset if user logs out or prop becomes null
+    const toast = useToast(); // Add toast
+    const auth = getAuth(); // Get Firebase auth instance
+    // Initialize state directly from props
+    const [currentActiveRole, setCurrentActiveRole] = useState<Role | null>(user?.activeRole || null);
+    
+    // Color mode values (all hooks called unconditionally at top level)
+    const menuBg = useColorModeValue('white', 'gray.700');
+    const menuTextColor = useColorModeValue('gray.800', 'white');
+    const menuHeaderColor = useColorModeValue('gray.500', 'gray.400');
+    const menuItemHoverBg = useColorModeValue('gray.100', 'gray.600');
+    const logoutItemHoverBg = useColorModeValue('red.50', 'red.900');
+    const logoutItemHoverColor = useColorModeValue('red.600', 'red.300');
+  
+    // Memoized role switching logic
+    const switchableRoles = useMemo(() => {
+      if (!user || !currentActiveRole) return [];
+      
+      return user.roles.filter(role => {
+        if (role === currentActiveRole) return false;
+        
+        // Role switching rules
+        switch (currentActiveRole) {
+          case ROLES.VOLUNTEER:
+            return role === ROLES.ADMIN || role === ROLES.STAFF;
+          case ROLES.ADMIN:
+            return role === ROLES.VOLUNTEER || role === ROLES.STAFF;
+          case ROLES.STAFF:
+            return role === ROLES.VOLUNTEER || role === ROLES.ADMIN;
+          default:
+            return false;
         }
-    }, [user]);    
+      });
+    }, [user, currentActiveRole]);
+  
+    // Early return after all hooks
+    if (!user || !currentActiveRole) return null;
+  
     const handleLogout = async () => {
         try {
-            await fetch(`${API_URL}/auth/logout`, {
-                method: 'POST',
-                credentials: 'include',
-            });
+          await signOut(auth); // Use Firebase signOut
+          console.log('Firebase user signed out.');
+          // Navigation to /login will be handled by the onAuthStateChanged listener in Layout
+          // navigate('/login'); // Not strictly necessary here anymore
+          toast({
+              title: 'Logged Out',
+              status: 'info',
+              duration: 2000,
+              isClosable: true,
+          });
         } catch (error) {
-            console.error("Error during logout:", error);
-            // Optionally show a toast message for logout failure
-        } finally {
-            // Navigate regardless of backend success/failure
-            navigate('/login');
+          console.error("Firebase Logout failed:", error);
+          toast({
+              title: 'Logout Error',
+              description: error instanceof Error ? error.message : 'Failed to log out.',
+              status: 'error',
+              duration: 5000,
+              isClosable: true,
+          });
         }
-    };
-
-    // Handler to update the local active role state
+        // No finally needed
+      };
+  
     const handleSwitchRole = (newRole: Role) => {
-        setCurrentActiveRole(newRole);
-        // No backend call or page refresh needed for now
-        // The menu should close automatically on item click
+      setCurrentActiveRole(newRole);
     };
-    
-    // Render nothing if user data or the active role isn't available yet
-    if (!user || !currentActiveRole) {
-        return null;
-    }
-
-    // Determine which roles are available for switching based on the current active role
-    const switchableRoles = user.roles.filter(role => {
-        // Cannot switch to the role that's already active
-        if (role === currentActiveRole) return false;
-
-        // Apply the conditional logic based on the *current* active role
-        switch (currentActiveRole) {
-            case ROLES.VOLUNTEER:
-                // If active is Volunteer, only show Admin or Staff if user has them
-                return role === ROLES.ADMIN || role === ROLES.STAFF;
-            case ROLES.ADMIN:
-                // If active is Admin, show Volunteer or Staff if user has them
-                return role === ROLES.VOLUNTEER || role === ROLES.STAFF;
-            case ROLES.STAFF:
-                // If active is Staff, show Volunteer or Admin if user has them
-                return role === ROLES.VOLUNTEER || role === ROLES.ADMIN;
-            default:
-                // Should not happen with defined roles, but good practice
-                return false;
-        }
-    });
-
+  
     return (
-        // Remove positioning styles from Flex
-        // Adjust padding if needed (p={4} might be too much inside the header)
-        <Flex
-            alignItems="center" // Align items vertically if needed
-            // p={1} // Example: reduce padding
-        >
-            <Menu placement="bottom-end">
-                <MenuButton
-                    as={Button}
-                    variant="ghost" // Keep ghost variant for header integration
-                    color="white" // Ensure text/icon color contrasts with header bg
-                    _hover={{ bg: 'blue.600' }} // Adjust hover bg for header
-                    _active={{ bg: 'blue.700' }} // Adjust active bg for header
-                    px={2} // Adjust padding
-                    py={1} // Adjust padding
-                    h="auto"
+      <Flex alignItems="center">
+        <Menu placement="bottom-end">
+          <MenuButton
+            as={Button}
+            variant="ghost"
+            color="white"
+            _hover={{ bg: 'blue.600' }}
+            _active={{ bg: 'blue.700' }}
+            px={2}
+            py={1}
+            h="auto"
+          >
+            <HStack spacing={2}>
+              <Avatar name={user.name} size="sm" />
+              <VStack align="start" spacing={0} display={{ base: 'none', md: 'flex' }}>
+                <Text fontWeight="medium" fontSize="sm" lineHeight="tight">
+                  {user.name}
+                </Text>
+                <Text fontSize="xs" color="blue.100" lineHeight="tight">
+                  {currentActiveRole.charAt(0).toUpperCase() + currentActiveRole.slice(1)}
+                </Text>
+              </VStack>
+            </HStack>
+          </MenuButton>
+          
+          <MenuList
+            zIndex="popover"
+            bg={menuBg}
+            color={menuTextColor}
+            boxShadow="md"
+          >
+            {switchableRoles.length > 0 && (
+              <>
+                <MenuItem 
+                  isFocusable={false} 
+                  fontWeight="bold" 
+                  fontSize="sm" 
+                  color={menuHeaderColor}
                 >
-                    <HStack spacing={2}> {/* Reduce spacing */}
-                        <Avatar name={user.name} size="sm" /* Optional: Adjust size */ />
-                        {/* Optionally hide name on smaller screens if needed */}
-                        <VStack align="start" spacing={0} display={{ base: 'none', md: 'flex' }}> {/* Hide text on small screens */}
-                            <Text fontWeight="medium" fontSize="sm" lineHeight="tight">{user.name}</Text>
-                            <Text fontSize="xs" color="blue.100" lineHeight="tight"> {/* Lighter color for role */}
-                                Role: {currentActiveRole.charAt(0).toUpperCase() + currentActiveRole.slice(1)}
-                            </Text>
-                        </VStack>
-                    </HStack>
-                </MenuButton>
-                {/* MenuList will still appear below the button */}
-                <MenuList zIndex="popover"
-                    bg={menuBg} // Set background color based on color mode
-                    color={menuTextColor} // Set default text color for items
-                    boxShadow="md" // Add a subtle shadow
-                > {/* Ensure menu appears above content */}
-                    {/* Role Switching Section */}
-                    {switchableRoles.length > 0 && (
-                        <>
-                            <MenuItem isFocusable={false} fontWeight="bold" fontSize="sm" color={menuHeaderColor}>
-                                Switch Role To:
-                            </MenuItem>
-                            {switchableRoles.map((role) => (
-                                <MenuItem
-                                    key={role}
-                                    icon={<FiRepeat size="14px" />}
-                                    onClick={() => handleSwitchRole(role)}
-                                    _hover={{ bg: useColorModeValue('gray.100', 'gray.600') }}
-                                    _focus={{ bg: useColorModeValue('gray.100', 'gray.600') }}                                    
-                                >
-                                    {role.charAt(0).toUpperCase() + role.slice(1)}
-                                </MenuItem>
-                            ))}
-                            <Divider />
-                        </>
-                    )}
-                    {/* Logout Section */}
-                    <MenuItem
-                        icon={<FiLogOut />}
-                        color="red.500"
-                        _hover={{ bg: 'red.50', color: 'red.600' }}
-                        _focus={{ bg: 'red.50', color: 'red.600' }}
-                        onClick={handleLogout}
-                    >
-                        Log Out
-                    </MenuItem>
-                </MenuList>
-            </Menu>
-        </Flex>
+                  Switch Role To:
+                </MenuItem>
+                {switchableRoles.map((role) => (
+                  <MenuItem
+                    key={role}
+                    icon={<FiRepeat size="14px" />}
+                    onClick={() => handleSwitchRole(role)}
+                    _hover={{ bg: menuItemHoverBg }}
+                    _focus={{ bg: menuItemHoverBg }}
+                  >
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </MenuItem>
+                ))}
+                <Divider />
+              </>
+            )}
+            
+            <MenuItem
+              icon={<FiLogOut />}
+              color="red.500"
+              _hover={{ 
+                bg: logoutItemHoverBg, 
+                color: logoutItemHoverColor 
+              }}
+              _focus={{ 
+                bg: logoutItemHoverBg, 
+                color: logoutItemHoverColor 
+              }}
+              onClick={handleLogout}
+            >
+              Log Out
+            </MenuItem>
+          </MenuList>
+        </Menu>
+      </Flex>
     );
-};
-export default UserProfile;
+  };
+  
+  export default UserProfile;

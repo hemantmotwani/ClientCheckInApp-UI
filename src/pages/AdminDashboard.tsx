@@ -20,6 +20,7 @@ import {
 } from '@chakra-ui/react'
 import { ROLES } from './UserProfile'; // Keep ROLES if needed for comparison
 import { useUserContext } from '../components/Layout'; // Import the custom hook
+import { getAuth } from 'firebase/auth'; // Import getAuth
 
 interface CheckIn {
   id: string;
@@ -49,7 +50,8 @@ interface Filters {
 }
 
 export default function AdminDashboard() {
-  const { user } = useUserContext();
+  const { userProfile, loading: authLoading, firebaseUser } = useUserContext();
+  const auth = getAuth(); // Get auth instance
 
   const [isAuthorized, setIsAuthorized] = useState(false); // Add state for authorization status
   const [checkIns, setCheckIns] = useState<CheckIn[]>([])
@@ -72,16 +74,13 @@ export default function AdminDashboard() {
 
     // --- Authorization Check useEffect (runs when user context changes) ---
     useEffect(() => {
-      if (user) {
-        if (user.activeRole === ROLES.ADMIN) {
-          setIsAuthorized(true);
-        } else {
-          setIsAuthorized(false);
-        }
+      // Check profile exists and has the admin role
+      if (userProfile && userProfile.activeRole === ROLES.ADMIN) {
+        setIsAuthorized(true);
       } else {
         setIsAuthorized(false);
       }
-    }, [user]); 
+    }, [userProfile]); // Depend on the fetched profile
 
 
   useEffect(() => {
@@ -94,17 +93,25 @@ export default function AdminDashboard() {
 
     const fetchCheckIns = async () => {
       setIsDataLoading(true); // Start data loading indicator
+      let idToken: string | null = null;
 
       try {
-          const response = await fetch(`${API_URL}/api/dashboard/check-ins`, {
-          credentials: 'include',
+        idToken = await firebaseUser.getIdToken();
+        const response = await fetch(`${API_URL}/api/dashboard/check-ins`, {
+        credentials: 'omit',
+        headers: {
+          // --- Add Authorization Header ---
+          'Authorization': `Bearer ${idToken}`,
+          // --- ---
+          'Content-Type': 'application/json', // If sending data, otherwise optional for GET
+      },        
         });
         // Specific check for 403 from backend (belt-and-suspenders)
-        if (response.status === 403) {
-          throw new Error('Forbidden: You do not have permission to view this data.');
-       }
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Unauthorized or Forbidden: You do not have permission.');
+        }
         if (!response.ok) {
-          throw new Error('Failed to fetch check-ins (Status: ${response.status}')
+          throw new Error(`Failed to fetch check-ins (Status: ${response.status})`);
         }
         const data = await response.json()
         setCheckIns(data)
@@ -114,7 +121,7 @@ export default function AdminDashboard() {
           title: 'Error Fetching Data',
           description: error instanceof Error ? error.message : 'An unknown error occurred',
           status: 'error',
-          duration: 3000,
+          duration: 5000,
           isClosable: true,
         });
         setCheckIns([]); // Clear data on error
@@ -125,7 +132,7 @@ export default function AdminDashboard() {
     }
 
     fetchCheckIns()
-  },[isAuthorized, toast, API_URL]);
+  }, [isAuthorized, firebaseUser, toast, API_URL]);
 
   useEffect(() => {
     const filtered = checkIns.filter(checkIn => {
@@ -152,7 +159,9 @@ export default function AdminDashboard() {
       [field]: value ? [value] : []
     }));
   };
-
+  if (authLoading) {
+    return <Container maxW="container.xl" py={8} centerContent><Spinner size="xl" /></Container>;
+}
   if (!isAuthorized) {
     return (
       <Container maxW="container.xl" py={8}>

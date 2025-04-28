@@ -16,14 +16,12 @@ import {
   Container,
 } from '@chakra-ui/react'
 import { Client } from '../types/client'
-// import { useNavigate } from 'react-router-dom'
-
-// import UserProfile, { User, Role, ROLES } from './UserProfile';
-import { useUserContext } from '../components/Layout';
+import { useUserContext } from '../components/Layout'; // Use context
+import { getAuth } from 'firebase/auth'; // Import getAuth
 
 export default function CheckIn() {
-    const { user } = useUserContext();
-
+  const { userProfile, firebaseUser, loading: authLoading } = useUserContext();
+  const auth = getAuth(); // Get auth instance
   // const [user, setUser] = useState<User | null>(null);
   // const [authLoading, setAuthLoading] = useState(true); // Add auth loading state
   const [barcode, setBarcode] = useState('')
@@ -34,36 +32,19 @@ export default function CheckIn() {
   // const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL
 
-  // useEffect(() => {
-  //   fetch(`${API_URL}/auth/status`, { credentials: 'include' })
-  //     .then((res) => res.json())
-  //     .then((data) => {
-  //       if (data.isAuthenticated && data.user) { // Check data.user exists
-  //         // Add console log to verify data structure
-  //         console.log('CheckIn - Auth Status User Data:', data.user);
-  //         // Ensure the received data matches the User interface
-  //         if (data.user.email && data.user.name && data.user.roles && data.user.activeRole) {
-  //            setUser(data.user as User); // Cast to User type after checks
-  //         } else {
-  //            console.error("CheckIn Auth Error: Received user data is incomplete or doesn't match expected structure.");
-  //            // Handle incomplete data - maybe navigate to login or show error
-  //            toast({ title: 'Login Error', description: 'User data is incomplete. Please log out and log in again.', status: 'error', duration: 5000, isClosable: true });
-  //            // Optionally navigate away: navigate('/login');
-  //         }
-  //       } else {
-  //         navigate('/login');
-  //       }
-  //     })
-  //     .catch(error => {
-  //        console.error("CheckIn Authentication check failed:", error);
-  //        toast({ title: 'Authentication Error', description: 'Could not verify login status.', status: 'error', duration: 5000, isClosable: true });
-  //        navigate('/login');
-  //     })
-  //     .finally(() => {
-  //       setAuthLoading(false);
-  //     });
-  // }, [navigate, toast, API_URL]); // Added API_URL and toast dependencies
   
+  const getAuthHeader = async (): Promise<{ Authorization: string } | null> => {
+    if (!firebaseUser) return null;
+    try {
+        const idToken = await firebaseUser.getIdToken();
+        return { Authorization: `Bearer ${idToken}` };
+    } catch (error) {
+        console.error("Error getting ID token:", error);
+        toast({ title: 'Authentication Error', description: 'Could not get authentication token.', status: 'error' });
+        return null;
+    }
+};
+
   const handleFindClient = async () => {
     if (!barcode) {
       toast({
@@ -80,13 +61,21 @@ export default function CheckIn() {
     setClient(null)
     setIsLoading(true)
     setIsCheckedIn(false)
+
+    const authHeader = await getAuthHeader();
+    if (!authHeader) {
+        setIsLoading(false);
+        return; // Stop if token couldn't be retrieved
+    }
+
     try {
 
       const response =await fetch(`${API_URL}/api/clients/${barcode}`,
         {
           method: 'GET',
-          credentials: 'include',
+          credentials: 'omit',
           headers: {
+            ...authHeader,
             'Content-Type': 'application/json',
           },
         }
@@ -128,13 +117,20 @@ export default function CheckIn() {
       })
       return
     }
-    setIsLoading(false)
+    setIsLoading(true)
+    
+    const authHeader = await getAuthHeader();
+    if (!authHeader) {
+        setIsLoading(false);
+        return; // Stop if token couldn't be retrieved
+    }
     try {
       const API_URL = import.meta.env.VITE_API_URL
       const response = await fetch(`${API_URL}/api/check-in`, {
         method: 'POST',
-        credentials: 'include',
+        credentials: 'omit',
         headers: {
+          ...authHeader, // Add Authorization header
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ barcode }),
@@ -165,7 +161,7 @@ export default function CheckIn() {
     } finally {
       setIsLoading(false)
     }
-  }
+  };
   // if (authLoading) {
   //   return (
   //     <Container maxW="container.md" py={8} centerContent>
@@ -173,6 +169,16 @@ export default function CheckIn() {
   //     </Container>
   //   )
   // }
+  // Use authLoading from context
+  if (authLoading) {
+    return (
+      <Container maxW="container.md" py={8} centerContent>
+        <Spinner size="xl" thickness="4px" speed="0.65s" color="blue.500"/>
+      </Container>
+    );
+  }
+
+
   return (
     <Container maxW="container.md" py={8}>
       {/* <Flex justify="flex-end" mb={8}>
